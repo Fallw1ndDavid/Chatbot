@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat</title>
+    <script>
+        async function sendMessage(event) {
+            event.preventDefault();
+            const message = document.getElementById('message').value;
+            const chatOutput = document.getElementById('chat-output');
+            chatOutput.innerHTML += `<p><strong>You:</strong> ${message}</p>`;
+
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message })
+            });
+            const data = await response.json();
+            if (data.reply) {
+                chatOutput.innerHTML += `<p><strong>Bot:</strong> ${data.reply}</p>`;
+            } else if (data.error) {
+                chatOutput.innerHTML += `<p style="color: red;"><strong>Error:</strong> ${data.error}</p>`;
+            }
+        }
+    </script>
+</head>
+<body>
+    <h1>Chat with GPT</h1>
+    <form id="chat-form" onsubmit="sendMessage(event)">
+        <textarea id="message" placeholder="Type your message..." required></textarea>
+        <button type="submit">Send</button>
+    </form>
+    <div id="chat-output"></div>
+</body>
+</html>

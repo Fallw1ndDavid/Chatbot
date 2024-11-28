@@ -1,5 +1,5 @@
 import os
-from flask import Flask, request, jsonify, render_template
+from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_cors import CORS
 from openai import OpenAI
 
@@ -16,19 +16,30 @@ client = OpenAI(
 ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "hanliangdeng")  # 默认密码
 
 
-# 默认页面路由
+# 登录页面路由
 @app.route('/')
 def index():
-    return render_template('index.html')  # 确保 templates 文件夹中有 index.html 文件
+    return render_template('login.html')  # 渲染登录页面
+
+# 登录验证路由
+@app.route('/login', methods=['POST'])
+def login():
+    password = request.form.get('password')
+    if password == ACCESS_TOKEN:
+        # 登录成功，重定向到聊天页面
+        return redirect(url_for('chat_page'))
+    else:
+        # 登录失败，返回错误消息
+        return render_template('login.html', error="Invalid password")
+
+# 聊天页面路由
+@app.route('/chat')
+def chat_page():
+    return render_template('chat.html')  # 渲染聊天页面
 
 # 聊天接口路由
 @app.route('/api/chat', methods=['POST'])
 def chat():
-    # 验证访问密码
-    token = request.headers.get("Authorization")
-    if token != ACCESS_TOKEN:
-        return jsonify({"error": "Unauthorized access"}), 401
-
     try:
         # 获取用户输入
         user_input = request.json.get('message', '')
