@@ -3,7 +3,14 @@ document.getElementById('send-btn').addEventListener('click', () => {
     if (!userInput.trim()) return;
 
     const chatBox = document.getElementById('chat-box');
-    chatBox.innerHTML += `<div><b>You:</b> ${userInput}</div>`;
+    const escapeHTML = (str) => {
+        const div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+    };
+
+    const sanitizedInput = escapeHTML(userInput);
+    chatBox.innerHTML += `<div class="user-message"><b>You:</b> ${sanitizedInput}</div>`;
     document.getElementById('user-input').value = '';
 
     fetch('/api/chat', {
@@ -13,8 +20,18 @@ document.getElementById('send-btn').addEventListener('click', () => {
     })
     .then(response => response.json())
     .then(data => {
-        chatBox.innerHTML += `<div><b>Bot:</b> ${data.reply}</div>`;
-        chatBox.scrollTop = chatBox.scrollHeight; // 滚动到底部
+        if (data.reply) {
+            chatBox.innerHTML += `<div class="bot-message"><b>Bot:</b> ${escapeHTML(data.reply)}</div>`;
+        } else if (data.error) {
+            chatBox.innerHTML += `<div class="bot-message"><b>Bot:</b> Error: ${data.error}</div>`;
+        } else {
+            chatBox.innerHTML += `<div class="bot-message"><b>Bot:</b> Unexpected response</div>`;
+        }
+        setTimeout(() => {
+            chatBox.scrollTop = chatBox.scrollHeight;
+        }, 100);
     })
-    .catch(error => console.error('Error:', error));
+    .catch(error => {
+        chatBox.innerHTML += `<div class="bot-message"><b>Bot:</b> Sorry, something went wrong. Please try again later.</div>`;
+    });
 });
