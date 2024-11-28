@@ -12,6 +12,10 @@ client = OpenAI(
     api_key=os.environ.get("OPENAI_API_KEY")  # 从环境变量获取 API Key
 )
 
+# 设置访问密码
+ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "hanliangdeng")  # 默认密码
+
+
 # 默认页面路由
 @app.route('/')
 def index():
@@ -20,6 +24,11 @@ def index():
 # 聊天接口路由
 @app.route('/api/chat', methods=['POST'])
 def chat():
+    # 验证访问密码
+    token = request.headers.get("Authorization")
+    if token != ACCESS_TOKEN:
+        return jsonify({"error": "Unauthorized access"}), 401
+
     try:
         # 获取用户输入
         user_input = request.json.get('message', '')
@@ -31,7 +40,7 @@ def chat():
             messages=[
                 {"role": "user", "content": user_input}
             ],
-            model="gpt-4",  # 替换为你有权限的模型名称
+            model="gpt-4o",  # 替换为你有权限的模型名称
         )
 
         # 提取 GPT 的回复
