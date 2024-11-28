@@ -31,19 +31,22 @@ def chat():
             messages=[
                 {"role": "user", "content": user_input}
             ],
-            model="gpt-4o",  # 替换为你有权限的模型名称
+            model="gpt-4",  # 替换为你有权限的模型名称
         )
 
         # 提取 GPT 的回复
-        bot_reply = response["choices"][0]["message"]["content"]
+        # 如果 response 对象不支持下标访问，请改用 .to_dict() 或直接通过属性访问
+        response_dict = response.to_dict()  # 转换为字典
+        bot_reply = response_dict["choices"][0]["message"]["content"]
 
         return jsonify({"reply": bot_reply})
 
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        # 返回详细错误信息用于调试
+        return jsonify({"error": f"An error occurred: {str(e)}"}), 500
 
 # 主程序入口
 if __name__ == '__main__':
-    # 动态端口支持
+    # 动态端口支持，适用于部署在平台（如 Render）
     port = int(os.environ.get("PORT", 5000))
     app.run(host='0.0.0.0', port=port)
