@@ -31,7 +31,7 @@ def chat():
             messages=[
                 {"role": "user", "content": user_input}
             ],
-            model="gpt-3.5-turbo",  # 替换为你有权限的模型名称
+            model="gpt-4o",  # 替换为你有权限的模型名称
         )
 
         # 提取 GPT 的回复
