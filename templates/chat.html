@@ -3,36 +3,128 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat</title>
+    <title>Chat with GPT</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+        }
+
+        #chat-container {
+            width: 400px;
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        #chat-header {
+            font-size: 1.5em;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+
+        #chat-box {
+            height: 300px;
+            overflow-y: auto;
+            border: 1px solid #ccc;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+
+        #chat-box p {
+            margin: 5px 0;
+        }
+
+        #chat-box .user {
+            text-align: right;
+            color: #007bff;
+        }
+
+        #chat-box .bot {
+            text-align: left;
+            color: #333;
+        }
+
+        #message-form {
+            display: flex;
+            gap: 10px;
+        }
+
+        #message-input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+
+        #send-btn {
+            padding: 10px 20px;
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+        #send-btn:hover {
+            background-color: #0056b3;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <div id="chat-header">Chat with GPT-4o</div>
+        <div id="chat-box" id="chat-output">
+            <!-- Chat messages will be appended here -->
+        </div>
+        <form id="message-form" onsubmit="sendMessage(event)">
+            <input type="text" id="message-input" placeholder="Type your message..." required>
+            <button id="send-btn" type="submit">Send</button>
+        </form>
+    </div>
+
     <script>
         async function sendMessage(event) {
             event.preventDefault();
-            const message = document.getElementById('message').value;
-            const chatOutput = document.getElementById('chat-output');
-            chatOutput.innerHTML += `<p><strong>You:</strong> ${message}</p>`;
+            const inputField = document.getElementById('message-input');
+            const chatBox = document.getElementById('chat-box');
+            const userMessage = inputField.value;
 
+            // Append user's message to the chat
+            chatBox.innerHTML += `<p class="user"><strong>You:</strong> ${userMessage}</p>`;
+            inputField.value = ''; // Clear input field
+            chatBox.scrollTop = chatBox.scrollHeight; // Scroll to the bottom
+
+            // Send message to the server
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
                 },
-                body: JSON.stringify({ message })
+                body: JSON.stringify({ message: userMessage })
             });
+
             const data = await response.json();
+
+            // Append bot's reply to the chat
             if (data.reply) {
-                chatOutput.innerHTML += `<p><strong>Bot:</strong> ${data.reply}</p>`;
+                chatBox.innerHTML += `<p class="bot"><strong>Bot:</strong> ${data.reply}</p>`;
             } else if (data.error) {
-                chatOutput.innerHTML += `<p style="color: red;"><strong>Error:</strong> ${data.error}</p>`;
+                chatBox.innerHTML += `<p class="bot" style="color: red;"><strong>Error:</strong> ${data.error}</p>`;
             }
+
+            chatBox.scrollTop = chatBox.scrollHeight; // Scroll to the bottom
         }
     </script>
-</head>
-<body>
-    <h1>Chat with GPT</h1>
-    <form id="chat-form" onsubmit="sendMessage(event)">
-        <textarea id="message" placeholder="Type your message..." required></textarea>
-        <button type="submit">Send</button>
-    </form>
-    <div id="chat-output"></div>
 </body>
 </html>
