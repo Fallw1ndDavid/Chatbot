@@ -3,9 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat with GPT</title>
+    <title>Chat with GPT-4o</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap">
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 <body class="flex justify-center items-center h-screen bg-gradient-to-r from-blue-400 to-purple-500 font-[Poppins]">
 
@@ -51,7 +52,7 @@
             loadingBar.classList.add("w-0");
             setTimeout(() => { loadingBar.classList.add("w-full"); }, 100);
 
-            // Simulate processing delay (API call)
+            // Send request to server
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -63,9 +64,10 @@
             // Hide loading bar after response
             loadingDiv.classList.add("hidden");
 
-            // Append bot's reply to the chat
+            // Render bot reply with Markdown formatting
             if (data.reply) {
-                chatBox.innerHTML += `<div class="text-left text-gray-800 mb-2"><strong>Bot:</strong> ${data.reply}</div>`;
+                const botReplyHtml = marked.parse(data.reply);
+                chatBox.innerHTML += `<div class="text-left text-gray-800 mb-2 p-2 bg-gray-200 rounded-md"><strong>Bot:</strong> ${botReplyHtml}</div>`;
             } else {
                 chatBox.innerHTML += `<div class="text-left text-red-600 mb-2"><strong>Bot:</strong> Error: ${data.error}</div>`;
             }
