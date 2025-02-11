@@ -4,92 +4,31 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat with GPT</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            background-color: #f4f4f9;
-            margin: 0;
-            padding: 0;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-        }
-
-        #chat-container {
-            width: 400px;
-            background: white;
-            padding: 20px;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-        }
-
-        #chat-header {
-            font-size: 1.5em;
-            font-weight: bold;
-            text-align: center;
-            margin-bottom: 20px;
-        }
-
-        #chat-box {
-            height: 300px;
-            overflow-y: auto;
-            border: 1px solid #ccc;
-            padding: 10px;
-            margin-bottom: 10px;
-            border-radius: 5px;
-            background-color: #f9f9f9;
-        }
-
-        #chat-box p {
-            margin: 5px 0;
-        }
-
-        #chat-box .user {
-            text-align: right;
-            color: #007bff;
-        }
-
-        #chat-box .bot {
-            text-align: left;
-            color: #333;
-        }
-
-        #message-form {
-            display: flex;
-            gap: 10px;
-        }
-
-        #message-input {
-            flex: 1;
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-        }
-
-        #send-btn {
-            padding: 10px 20px;
-            background-color: #007bff;
-            color: white;
-            border: none;
-            border-radius: 5px;
-            cursor: pointer;
-        }
-
-        #send-btn:hover {
-            background-color: #0056b3;
-        }
-    </style>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap">
+    <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body>
-    <div id="chat-container">
-        <div id="chat-header">Chat with GPT-4o</div>
-        <div id="chat-box" id="chat-output">
-            <!-- Chat messages will be appended here -->
+<body class="flex justify-center items-center h-screen bg-gradient-to-r from-blue-400 to-purple-500 font-[Poppins]">
+
+    <div id="chat-container" class="w-full max-w-lg bg-white rounded-2xl shadow-lg p-6">
+        <h1 class="text-2xl font-semibold text-center text-gray-800 mb-4">Chat with GPT-4o</h1>
+
+        <!-- Chat Box -->
+        <div id="chat-box" class="h-80 overflow-y-auto border border-gray-300 p-4 rounded-md bg-gray-100 shadow-inner">
+            <p class="text-gray-500 text-center">Start the conversation...</p>
         </div>
-        <form id="message-form" onsubmit="sendMessage(event)">
-            <input type="text" id="message-input" placeholder="Type your message..." required>
-            <button id="send-btn" type="submit">Send</button>
+
+        <!-- "Thinking" loading bar -->
+        <div id="loading" class="hidden text-center mt-2">
+            <span class="text-sm text-gray-600">Thinking...</span>
+            <div class="w-full h-1 bg-gray-200 mt-1">
+                <div id="loading-bar" class="h-1 bg-blue-500 w-0 transition-all"></div>
+            </div>
+        </div>
+
+        <!-- Message Input -->
+        <form id="message-form" class="mt-4 flex gap-3">
+            <input type="text" id="message-input" class="flex-1 p-3 border rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Type your message..." required>
+            <button type="submit" id="send-btn" class="px-5 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-800 transition">Send</button>
         </form>
     </div>
 
@@ -99,32 +38,43 @@
             const inputField = document.getElementById('message-input');
             const chatBox = document.getElementById('chat-box');
             const userMessage = inputField.value;
+            const loadingBar = document.getElementById('loading-bar');
+            const loadingDiv = document.getElementById('loading');
 
             // Append user's message to the chat
-            chatBox.innerHTML += `<p class="user"><strong>You:</strong> ${userMessage}</p>`;
-            inputField.value = ''; // Clear input field
-            chatBox.scrollTop = chatBox.scrollHeight; // Scroll to the bottom
+            chatBox.innerHTML += `<div class="text-right text-blue-600 mb-2"><strong>You:</strong> ${userMessage}</div>`;
+            inputField.value = '';
+            chatBox.scrollTop = chatBox.scrollHeight;
 
-            // Send message to the server
+            // Show "Thinking..." loading bar
+            loadingDiv.classList.remove("hidden");
+            loadingBar.classList.add("w-0");
+            setTimeout(() => { loadingBar.classList.add("w-full"); }, 100);
+
+            // Simulate processing delay (API call)
             const response = await fetch('/api/chat', {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
+                headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message: userMessage })
             });
 
             const data = await response.json();
 
+            // Hide loading bar after response
+            loadingDiv.classList.add("hidden");
+
             // Append bot's reply to the chat
             if (data.reply) {
-                chatBox.innerHTML += `<p class="bot"><strong>Bot:</strong> ${data.reply}</p>`;
-            } else if (data.error) {
-                chatBox.innerHTML += `<p class="bot" style="color: red;"><strong>Error:</strong> ${data.error}</p>`;
+                chatBox.innerHTML += `<div class="text-left text-gray-800 mb-2"><strong>Bot:</strong> ${data.reply}</div>`;
+            } else {
+                chatBox.innerHTML += `<div class="text-left text-red-600 mb-2"><strong>Bot:</strong> Error: ${data.error}</div>`;
             }
 
-            chatBox.scrollTop = chatBox.scrollHeight; // Scroll to the bottom
+            chatBox.scrollTop = chatBox.scrollHeight;
         }
+
+        document.getElementById('message-form').addEventListener('submit', sendMessage);
     </script>
+
 </body>
 </html>
