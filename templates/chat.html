@@ -11,7 +11,14 @@
 <body class="flex justify-center items-center h-screen bg-gradient-to-r from-blue-400 to-purple-500 font-[Poppins]">
 
     <div id="chat-container" class="w-full max-w-lg bg-white rounded-2xl shadow-lg p-6">
-        <h1 class="text-2xl font-semibold text-center text-gray-800 mb-4">Chat with GPT-4o</h1>
+        <!-- 顶部按钮 -->
+        <div class="flex justify-between mb-4">
+            <h1 class="text-2xl font-semibold text-gray-800">Chat with GPT-4o</h1>
+            <div>
+                <button onclick="clearChat()" class="px-3 py-1 bg-red-500 text-white rounded-md text-sm hover:bg-red-700">Clear</button>
+                <button onclick="logout()" class="px-3 py-1 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-700">Logout</button>
+            </div>
+        </div>
 
         <!-- Chat Box -->
         <div id="chat-box" class="h-80 overflow-y-auto border border-gray-300 p-4 rounded-md bg-gray-100 shadow-inner">
@@ -76,6 +83,18 @@
         }
 
         document.getElementById('message-form').addEventListener('submit', sendMessage);
+
+        // 清除聊天历史
+        async function clearChat() {
+            await fetch('/api/clear', { method: 'POST' });
+            document.getElementById('chat-box').innerHTML = "<p class='text-gray-500 text-center'>Chat cleared.</p>";
+        }
+
+        // 退出登录
+        async function logout() {
+            await fetch('/logout', { method: 'POST' });
+            window.location.href = '/';
+        }
     </script>
 
 </body>
