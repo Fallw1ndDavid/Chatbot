@@ -71,16 +71,31 @@ def analyze_sentiment(text):
 
 def get_weather(city):
     """
-    获取实时天气数据
+    获取 OpenWeatherMap 的实时天气信息
     """
     try:
-        url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={OPENWEATHER_API_KEY}&units=metric"
+        if not OPENWEATHER_API_KEY:
+            return "Error: Weather API key is missing."
+
+        url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={OPENWEATHER_API_KEY}&units=metric&lang=zh_cn"
         response = requests.get(url)
         data = response.json()
+
+        if response.status_code == 401:
+            return "Error: Invalid API key for OpenWeatherMap."
+
+        if response.status_code == 404:
+            return f"Error: City '{city}' not found."
+
         if response.status_code == 200:
-            return f"The current temperature in {city} is {data['main']['temp']}°C with {data['weather'][0]['description']}."
-        else:
-            return "Sorry, I couldn't retrieve the weather data."
+            temp = data["main"]["temp"]
+            description = data["weather"][0]["description"]
+            humidity = data["main"]["humidity"]
+            wind_speed = data["wind"]["speed"]
+            return f"🌍 {city}的当前天气：{description} 🌦️ 温度: {temp}°C 🌡️ 湿度: {humidity}% 💧 风速: {wind_speed} m/s 💨"
+
+        return "Error: Could not retrieve weather data."
+
     except Exception as e:
         return f"Error retrieving weather: {str(e)}"
 
@@ -115,9 +130,10 @@ def chat():
         if not user_input:
             return jsonify({"error": "Message cannot be empty"}), 400
 
-        # 检测天气查询
-        if "weather" in user_input.lower():
-            city = user_input.split("in")[-1].strip()
+        # 解析天气查询
+        if "天气" in user_input or "weather" in user_input.lower():
+            words = user_input.split()
+            city = words[-1]  # 获取用户输入中的城市
             weather_info = get_weather(city)
             return jsonify({"reply": weather_info})
 
