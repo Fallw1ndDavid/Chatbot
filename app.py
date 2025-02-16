@@ -4,6 +4,7 @@ from flask import Flask, request, jsonify, render_template, redirect, url_for, s
 from flask_cors import CORS
 from transformers import pipeline
 from openai import OpenAI
+import re
 
 # 初始化 Flask
 app = Flask(__name__)
@@ -68,14 +69,34 @@ def analyze_sentiment(text):
 
 
 ### ========================== 4️⃣ 实时数据查询（Weather & News） ========================== ###
+def extract_city(user_input):
+    """
+    从用户输入中提取城市名称（支持中文 & 英文）
+    """
+    # 常见天气问题关键词（适用于中英文）
+    weather_keywords = ["天气", "weather", "forecast", "气温"]
+
+    # 去掉天气关键词，保留城市名
+    for keyword in weather_keywords:
+        user_input = user_input.replace(keyword, "").strip()
+
+    # 只保留汉字或英文字母（去除数字和符号）
+    match = re.search(r"[\u4e00-\u9fff]+|[a-zA-Z\s]+", user_input)
+    if match:
+        return match.group(0).strip()
+
+    return None  # 没找到城市名
 
 def get_weather(city):
     """
-    获取 OpenWeatherMap 的实时天气信息
+    查询 OpenWeatherMap API，获取城市天气信息
     """
     try:
         if not OPENWEATHER_API_KEY:
             return "Error: Weather API key is missing."
+
+        if not city:
+            return "Error: Could not recognize city name."
 
         url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={OPENWEATHER_API_KEY}&units=metric&lang=zh_cn"
         response = requests.get(url)
@@ -130,10 +151,11 @@ def chat():
         if not user_input:
             return jsonify({"error": "Message cannot be empty"}), 400
 
+        # **提取用户输入中的城市名**
+        city = extract_city(user_input)
+
         # 解析天气查询
         if "天气" in user_input or "weather" in user_input.lower():
-            words = user_input.split()
-            city = words[-1]  # 获取用户输入中的城市
             weather_info = get_weather(city)
             return jsonify({"reply": weather_info})
 
