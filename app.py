@@ -71,21 +71,27 @@ def analyze_sentiment(text):
 ### ========================== 4️⃣ 实时数据查询（Weather & News） ========================== ###
 def extract_city(user_input):
     """
-    从用户输入中提取城市名称（支持中文 & 英文）
+    提取用户输入中的城市名称，支持中英文混合
     """
-    # 常见天气问题关键词（适用于中英文）
-    weather_keywords = ["天气", "weather", "forecast", "气温"]
-
-    # 去掉天气关键词，保留城市名
-    for keyword in weather_keywords:
-        user_input = user_input.replace(keyword, "").strip()
-
-    # 只保留汉字或英文字母（去除数字和符号）
-    match = re.search(r"[\u4e00-\u9fff]+|[a-zA-Z\s]+", user_input)
+    # **方法 1: 直接用正则提取**
+    match = re.search(r"([\u4e00-\u9fff]+|[A-Za-z\s]+)", user_input)
     if match:
         return match.group(0).strip()
 
-    return None  # 没找到城市名
+    # **方法 2: 让 GPT 帮助解析城市名**
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Extract only the city name from the user input."},
+                {"role": "user", "content": user_input}
+            ]
+        )
+        city = response.choices[0].message.content.strip()
+        return city
+
+    except Exception as e:
+        return None
 
 def get_weather(city):
     """
@@ -156,8 +162,11 @@ def chat():
 
         # 解析天气查询
         if "天气" in user_input or "weather" in user_input.lower():
-            weather_info = get_weather(city)
-            return jsonify({"reply": weather_info})
+            if city:
+                weather_info = get_weather(city)
+                return jsonify({"reply": weather_info})
+            else:
+                return jsonify({"reply": "I couldn't detect a city name. Please try again!"})
 
         # 检测新闻查询
         if "news" in user_input.lower():
