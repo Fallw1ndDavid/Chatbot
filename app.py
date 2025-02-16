@@ -71,26 +71,29 @@ def analyze_sentiment(text):
 ### ========================== 4️⃣ 实时数据查询（Weather & News） ========================== ###
 def extract_city(user_input):
     """
-    提取用户输入中的城市名称，支持中英文混合
+    提取用户输入中的城市名称（支持中英文）
     """
-    # **方法 1: 直接用正则提取**
-    match = re.search(r"([\u4e00-\u9fff]+|[A-Za-z\s]+)", user_input)
+    # **去除天气相关关键词**
+    user_input = re.sub(r"(天气|weather|forecast|气温|气候)", "", user_input, flags=re.IGNORECASE).strip()
+
+    # **直接提取城市名称（中文或英文）**
+    match = re.search(r"[\u4e00-\u9fff]+|[A-Za-z\s]+", user_input)
     if match:
         return match.group(0).strip()
 
-    # **方法 2: 让 GPT 帮助解析城市名**
+    # **如果正则匹配失败，尝试 GPT 解析**
     try:
         response = client.chat.completions.create(
             model="gpt-4o",
             messages=[
-                {"role": "system", "content": "Extract only the city name from the user input."},
+                {"role": "system", "content": "Extract the city name from the user's input. Only return the city name."},
                 {"role": "user", "content": user_input}
             ]
         )
         city = response.choices[0].message.content.strip()
         return city
 
-    except Exception as e:
+    except Exception:
         return None
 
 def get_weather(city):
@@ -101,7 +104,7 @@ def get_weather(city):
         if not OPENWEATHER_API_KEY:
             return "Error: Weather API key is missing."
 
-        if not city:
+        if not city or len(city) < 2:
             return "Error: Could not recognize city name."
 
         url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={OPENWEATHER_API_KEY}&units=metric&lang=zh_cn"
