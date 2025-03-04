@@ -20,6 +20,7 @@ ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "hanliangdeng")  # 默认密码
 
 # API Keys
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")  # OpenWeather API Key
+NEWS_API_KEY = os.environ["NEWS_API_KEY"]
 
 # 限制对话历史长度
 MAX_HISTORY = 20
@@ -109,6 +110,61 @@ def query_openweather_function(city="Beijing", units="metric", language="zh_cn",
 
         print("❌ OpenWeather API 错误:", error_message)
         # 将错误消息转换为JSON格式的字符串
+        return json.dumps(error_message)
+
+
+### ========================== 3️⃣ 实时新闻查询（基于 NewsAPI） ========================== ###
+def query_news_function(topic="technology", language="zh", page_size=5, api_key=None):
+    """
+    使用 NewsAPI 查询指定主题的最新新闻，并限制返回的新闻条数。
+
+    参数:
+    - topic (str): 需要查询的新闻主题，默认为 "technology"。
+    - language (str): 新闻语言，默认为 "zh"（简体中文）。
+    - page_size (int): 需要返回的新闻数量，默认为 5。
+    - api_key (str): NewsAPI 的 API 密钥。
+
+    返回:
+    - str: 查询到的新闻信息，以 JSON 格式返回。
+    """
+    api_key = os.getenv("NEWS_API_KEY")  # 获取 API Key
+
+    if not api_key or api_key == "your_news_api_key":
+        print("❌ NewsAPI Key 未设置或无效")
+        return json.dumps({"error": "NewsAPI Key is missing or invalid."})
+
+    url = "https://newsapi.org/v2/everything"
+
+    params = {
+        "q": topic,
+        "language": language,
+        "pageSize": page_size,  # 限制返回条数
+        "apiKey": api_key
+    }
+
+    response = requests.get(url, params=params)
+
+    if response.status_code == 200:
+        data = response.json()
+        articles = data.get("articles", [])
+
+        # 只返回简短的标题和来源，避免 Token 过载
+        news_summary = [
+            {
+                "title": article.get("title", "无标题"),
+                "source": article["source"].get("name", "未知来源"),
+                "url": article.get("url", "#")
+            }
+            for article in articles
+        ]
+
+        return json.dumps(news_summary)
+    else:
+        error_message = {
+            "错误": f"查询失败，状态码：{response.status_code}",
+            "响应数据": response.text
+        }
+        print("❌ NewsAPI 错误:", error_message)
         return json.dumps(error_message)
 
 
@@ -288,7 +344,7 @@ def chat():
             return jsonify({"error": "Message cannot be empty"}), 400
 
         # 解析 Function Calling
-        function_list = [query_openweather_function]  # 需要 GPT-4o 调用的外部函数
+        function_list = [query_openweather_function, query_news_function]  # 需要 GPT-4o 调用的外部函数
         generator = AutoFunctionGenerator(function_list)  # 生成 JSON Schema
         functions = generator.auto_generate()
         print("Generated function descriptions:", functions)
@@ -330,9 +386,24 @@ def chat():
 
             print(f"✅ 触发 Function Calling: {function_name}，参数: {function_args}")
 
+            # **调用不同 API**
+            if function_name == "query_openweather_function":
+                function_response = query_openweather_function(**function_args)
+            elif function_name == "query_news_function":
+                function_response = query_news_function(**function_args)
 
-            # 调用函数并获取返回结果
-            function_response = query_openweather_function(**function_args)
+                # **解析新闻数据，限制 GPT 处理的数量**
+                news_list = json.loads(function_response)
+                if isinstance(news_list, list):
+                    news_text = "\n".join([
+                        f"{i + 1}. {n['title']}（来源: {n['source']}）\n阅读详情: {n['url']}"
+                        for i, n in enumerate(news_list[:5])  # 只取前 5 条新闻
+                    ])
+                    function_response = json.dumps({"summary": news_text})  # 让 GPT 只总结 5 条新闻
+
+            else:
+                function_response = json.dumps({"error": f"未知函数: {function_name}"})
+
             function_response_json = json.dumps(function_response)  # 确保是 JSON 字符串
 
             # 存储函数调用的返回值
