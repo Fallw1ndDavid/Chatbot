@@ -6,6 +6,10 @@ from flask_cors import CORS
 from openai import OpenAI
 import inspect
 import re
+from dotenv import load_dotenv
+
+# **加载环境变量**
+load_dotenv()
 
 # 初始化 Flask
 app = Flask(__name__)
@@ -21,6 +25,12 @@ ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "hanliangdeng")  # 默认密码
 # API Keys
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")  # OpenWeather API Key
 NEWS_API_KEY = os.environ["NEWS_API_KEY"]
+
+if not OPENWEATHER_API_KEY:
+    raise ValueError("❌ OpenWeather API Key 未正确加载！请检查环境变量。")
+
+if not NEWS_API_KEY:
+    raise ValueError("❌ NewsAPI Key 未正确加载！请检查环境变量。")
 
 # 限制对话历史长度
 MAX_HISTORY = 20
@@ -75,9 +85,9 @@ def query_openweather_function(city="Beijing", units="metric", language="zh_cn",
 
     api_key = os.getenv("OPENWEATHER_API_KEY")
 
-    if not api_key or api_key == "your_openweather_api_key":
-        print("❌ OpenWeather API Key 未设置或无效")
-        return json.dumps({"error": "OpenWeather API Key is missing or invalid."})
+    if not api_key:
+        print("❌ OpenWeatherAPI Key 未设置或无效")
+        return json.dumps({"error": "OpenWeatherAPI Key is missing or invalid."})
 
     # 构建请求的URL
     url = "https://api.openweathermap.org/data/2.5/weather"
@@ -125,11 +135,12 @@ def query_news_function(topic="technology", language="zh", page_size=5, api_key=
     - api_key (str): NewsAPI 的 API 密钥。
 
     返回:
-    - str: 查询到的新闻信息，以 JSON 格式返回。
+    - str: 查询到的新闻信息，以 HTML 格式返回（优化展示效果）。
     """
-    api_key = os.getenv("NEWS_API_KEY")  # 获取 API Key
+    # **确保 API Key 绝对可用**
+    api_key = os.getenv("NEWS_API_KEY")
 
-    if not api_key or api_key == "your_news_api_key":
+    if not api_key:
         print("❌ NewsAPI Key 未设置或无效")
         return json.dumps({"error": "NewsAPI Key is missing or invalid."})
 
@@ -148,24 +159,19 @@ def query_news_function(topic="technology", language="zh", page_size=5, api_key=
         data = response.json()
         articles = data.get("articles", [])
 
-        # 只返回简短的标题和来源，避免 Token 过载
-        news_summary = [
-            {
-                "title": article.get("title", "无标题"),
-                "source": article["source"].get("name", "未知来源"),
-                "url": article.get("url", "#")
-            }
+        # ✅ 生成 Markdown 格式
+        news_summary = "\n\n".join([
+            f"**[{article.get('title', '无标题')}]({article.get('url', '#')})**  \n来源: {article['source'].get('name', '未知来源')}"
             for article in articles
-        ]
+        ])
 
-        return json.dumps(news_summary)
+        return json.dumps({"summary": news_summary})
+
     else:
-        error_message = {
-            "错误": f"查询失败，状态码：{response.status_code}",
-            "响应数据": response.text
-        }
-        print("❌ NewsAPI 错误:", error_message)
-        return json.dumps(error_message)
+        return json.dumps({
+            "error": f"查询失败，状态码：{response.status_code}",
+            "response": response.text
+        })
 
 
 
@@ -385,6 +391,12 @@ def chat():
             function_args = json.loads(response_message.function_call.arguments)
 
             print(f"✅ 触发 Function Calling: {function_name}，参数: {function_args}")
+
+            # **确保 API Key 绝对存在**
+            if function_name == "query_news_function" and "api_key" not in function_args:
+                function_args["api_key"] = os.getenv("NEWS_API_KEY")
+            if function_name == "query_openweather_function" and "api_key" not in function_args:
+                function_args["api_key"] = os.getenv("OPENWEATHER_API_KEY")
 
             # **调用不同 API**
             if function_name == "query_openweather_function":

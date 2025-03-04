@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -21,7 +21,7 @@
         </div>
 
         <!-- Chat Box -->
-        <div id="chat-box" class="h-80 overflow-y-auto border border-gray-300 p-4 rounded-md bg-gray-100 shadow-inner">
+        <div id="chat-box" class="h-96 overflow-y-auto border border-gray-300 p-4 rounded-md bg-gray-100 shadow-inner">
             <p class="text-gray-500 text-center">Start the conversation...</p>
         </div>
 
@@ -71,12 +71,26 @@
             // Hide loading bar after response
             loadingDiv.classList.add("hidden");
 
-            // Render bot reply with Markdown formatting
+            // ✅ 解析 Markdown 并渲染 HTML，同时确保 `a` 标签可点击
             if (data.reply) {
                 const botReplyHtml = marked.parse(data.reply);
-                chatBox.innerHTML += `<div class="text-left text-gray-800 mb-2 p-2 bg-gray-200 rounded-md"><strong>Bot:</strong> ${botReplyHtml}</div>`;
+                const botMessage = document.createElement("div");
+                botMessage.classList.add("text-left", "text-gray-800", "mb-2", "p-2", "bg-gray-200", "rounded-md");
+                botMessage.innerHTML = `<strong>Bot:</strong> ${botReplyHtml}`;
+
+                // ✅ **确保超链接在新标签页打开**
+                botMessage.querySelectorAll("a").forEach(link => {
+                    link.setAttribute("target", "_blank");
+                    link.setAttribute("rel", "noopener noreferrer");
+                });
+
+                chatBox.appendChild(botMessage);
             } else {
-                chatBox.innerHTML += `<div class="text-left text-red-600 mb-2"><strong>Bot:</strong> Error: ${data.error}</div>`;
+                chatBox.insertAdjacentHTML('beforeend', `
+                    <div class="text-left text-red-600 mb-2">
+                        <strong>Bot:</strong> Error: ${data.error}
+                    </div>
+                `);
             }
 
             chatBox.scrollTop = chatBox.scrollHeight;
