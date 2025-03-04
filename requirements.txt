@@ -5,4 +5,3 @@ transformers
 torch
 openai
 python-dotenv
-marked
