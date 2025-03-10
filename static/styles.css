@@ -5,24 +5,87 @@ body {
     padding: 0;
     display: flex;
     justify-content: center;
-    align-items: flex-start; /* 改为顶部对齐，适配长页面 */
+    align-items: flex-start;
     min-height: 100vh;
     background-color: #f4f4f9;
-    box-sizing: border-box; /* 包括内边距和边框在宽高计算中 */
+    box-sizing: border-box;
 }
 
-/* 聊天容器样式 */
+/* 聊天历史（左侧对话列表） */
+#chat-history {
+    width: 25%;
+    background: white;
+    padding: 15px;
+    border-right: 1px solid #ddd;
+    overflow-y: auto;
+}
+
+/* ✅ 确保每个对话项的菜单可以正确显示 */
+.history-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    border-radius: 5px;
+    background: #f9f9f9;
+    cursor: pointer;
+    margin-bottom: 5px;
+    transition: background 0.2s ease;
+    position: relative; /* 让菜单相对于对话项定位 */
+    z-index: 1;
+}
+
+.history-item:hover {
+    background: #e0e0e0;
+}
+
+/* ✅ 让菜单浮动在最上方，不会被下一行遮挡 */
+.menu {
+    position: absolute;
+    top: 100%;
+    right: 5px;
+    background: white;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 9999; /* **确保菜单始终浮动在最上层** */
+    width: 120px;
+    display: none;
+}
+
+/* ✅ 避免菜单被聊天历史项遮挡 */
+.history-item .menu {
+    top: calc(100% + 5px); /* **下移菜单，防止遮挡** */
+}
+
+/* ✅ 让菜单项之间有足够的间距 */
+.menu button {
+    display: block;
+    width: 100%;
+    text-align: left;
+    padding: 8px 10px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 14px;
+}
+
+.menu button:hover {
+    background: #f0f0f0;
+}
+
+/* 聊天容器 */
 #chat-container {
-    width: 90%; /* 默认宽度 90% */
-    max-width: 400px; /* 最大宽度为 400px */
+    width: 90%;
+    max-width: 400px;
     background: white;
     padding: 20px;
     border-radius: 10px;
     box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-    margin: 20px 0; /* 增加顶部和底部间距 */
+    margin: 20px 0;
 }
 
-/* 聊天框样式 */
+/* 聊天框 */
 #chat-box {
     height: 300px;
     overflow-y: auto;
@@ -31,38 +94,36 @@ body {
     margin-bottom: 10px;
     border-radius: 5px;
     background-color: #fafafa;
-
-    /* 滚动条样式 */
-    scrollbar-width: thin; /* 对 Firefox 有效 */
-    scrollbar-color: #ccc #fafafa; /* 滚动条颜色 (前景/背景) */
+    scrollbar-width: thin;
+    scrollbar-color: #ccc #fafafa;
 }
 
 #chat-box::-webkit-scrollbar {
-    width: 8px; /* 滚动条宽度 */
+    width: 8px;
 }
 
 #chat-box::-webkit-scrollbar-thumb {
-    background-color: #ccc; /* 滚动条颜色 */
-    border-radius: 4px; /* 圆角效果 */
+    background-color: #ccc;
+    border-radius: 4px;
 }
 
 #chat-box::-webkit-scrollbar-track {
-    background-color: #fafafa; /* 滚动条背景色 */
+    background-color: #fafafa;
 }
 
-/* 用户输入框样式 */
+/* 输入框 */
 #user-input {
     width: 100%;
-    box-sizing: border-box; /* 确保内边距不影响宽度 */
+    box-sizing: border-box;
     margin-bottom: 10px;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 5px;
-    resize: none; /* 禁止调整大小 */
+    resize: none;
     font-size: 14px;
 }
 
-/* 发送按钮样式 */
+/* 发送按钮 */
 #send-btn {
     width: 100%;
     padding: 10px;
@@ -72,41 +133,39 @@ body {
     border-radius: 5px;
     cursor: pointer;
     font-size: 16px;
-    transition: background-color 0.2s ease, transform 0.2s ease; /* 添加过渡效果 */
+    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
-/* 悬停和按下效果 */
 #send-btn:hover {
-    background-color: #0056b3; /* 悬停颜色 */
+    background-color: #0056b3;
 }
 
 #send-btn:active {
-    background-color: #004a80; /* 按下颜色 */
-    transform: scale(0.98); /* 模拟按下的视觉效果 */
+    background-color: #004a80;
+    transform: scale(0.98);
 }
 
-/* 禁用按钮样式 */
 #send-btn:disabled {
-    background-color: #ccc; /* 灰色表示禁用状态 */
+    background-color: #ccc;
     cursor: not-allowed;
 }
 
-/* 聊天消息样式 */
+/* 用户/机器人消息 */
 .user-message {
     text-align: right;
     color: blue;
     margin: 5px 0;
-    word-wrap: break-word; /* 长单词自动换行 */
+    word-wrap: break-word;
 }
 
 .bot-message {
     text-align: left;
     color: green;
     margin: 5px 0;
-    word-wrap: break-word; /* 长单词自动换行 */
+    word-wrap: break-word;
 }
 
-/* 响应式设计 */
+/* 响应式 */
 @media (max-width: 600px) {
     #chat-container {
         width: 95%;
@@ -114,15 +173,15 @@ body {
     }
 
     #chat-box {
-        height: 200px; /* 减小聊天框高度 */
+        height: 200px;
     }
 
     #send-btn {
         padding: 8px;
-        font-size: 14px; /* 减小字体大小 */
+        font-size: 14px;
     }
 
     #user-input {
-        font-size: 13px; /* 输入框字体大小适配 */
+        font-size: 13px;
     }
 }

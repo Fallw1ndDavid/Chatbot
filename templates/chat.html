@@ -5,110 +5,258 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat with GPT-4o</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
-<body class="flex justify-center items-center h-screen bg-gradient-to-r from-blue-400 to-purple-500 font-[Poppins]">
+<body class="h-screen bg-gradient-to-r from-blue-400 to-purple-500 font-[Poppins] flex" onclick="closeAllMenus(event)">
 
-    <div id="chat-container" class="w-full max-w-lg bg-white rounded-2xl shadow-lg p-6">
-        <!-- 顶部按钮 -->
-        <div class="flex justify-between mb-4">
-            <h1 class="text-2xl font-semibold text-gray-800">Chat with GPT-4o</h1>
-            <div>
-                <button onclick="clearChat()" class="px-3 py-1 bg-red-500 text-white rounded-md text-sm hover:bg-red-700">Clear</button>
-                <button onclick="logout()" class="px-3 py-1 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-700">Logout</button>
+    <!-- 左侧对话列表 -->
+    <div id="chat-history" class="w-1/4 bg-white p-4 shadow-lg overflow-y-auto relative">
+        <div class="flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-gray-800">历史对话</h2>
+            <button onclick="startNewChat()" class="px-2 py-1 bg-blue-500 text-white rounded-md text-sm hover:bg-blue-700">➕ 新对话</button>
+        </div>
+        <ul id="history-list" class="mt-2 space-y-2"></ul>
+    </div>
+
+    <!-- 右侧聊天窗口 -->
+    <div class="flex-1 flex flex-col justify-center items-center">
+        <!-- 顶部按钮（退出） -->
+        <div class="absolute top-4 right-6">
+            <button onclick="logout()" class="px-3 py-1 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-700">退出登录</button>
+        </div>
+
+        <div id="chat-container" class="w-full max-w-lg bg-white rounded-2xl shadow-lg p-6">
+            <!-- 顶部标题 -->
+            <div class="flex justify-between mb-4">
+                <h1 id="chat-title" class="text-2xl font-semibold text-gray-800">I'm ChatBotX. What Can I Do For You?</h1>
             </div>
-        </div>
 
-        <!-- Chat Box -->
-        <div id="chat-box" class="h-96 overflow-y-auto border border-gray-300 p-4 rounded-md bg-gray-100 shadow-inner">
-            <p class="text-gray-500 text-center">Start the conversation...</p>
-        </div>
-
-        <!-- "Thinking" loading bar -->
-        <div id="loading" class="hidden text-center mt-2">
-            <span class="text-sm text-gray-600">Thinking...</span>
-            <div class="w-full h-1 bg-gray-200 mt-1">
-                <div id="loading-bar" class="h-1 bg-blue-500 w-0 transition-all"></div>
+            <!-- Chat Box -->
+            <div id="chat-box" class="h-96 overflow-y-auto border border-gray-300 p-4 rounded-md bg-gray-100 shadow-inner">
+                <p class="text-gray-500 text-center">请选择一个历史对话，或开始新的聊天。</p>
             </div>
-        </div>
 
-        <!-- Message Input -->
-        <form id="message-form" class="mt-4 flex gap-3">
-            <input type="text" id="message-input" class="flex-1 p-3 border rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Type your message..." required>
-            <button type="submit" id="send-btn" class="px-5 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-800 transition">Send</button>
-        </form>
+            <!-- "Thinking" loading bar -->
+            <div id="loading" class="hidden text-center mt-2">
+                <span class="text-sm text-gray-600">Thinking...</span>
+                <div class="w-full h-1 bg-gray-200 mt-1">
+                    <div id="loading-bar" class="h-1 bg-blue-500 w-0 transition-all"></div>
+                </div>
+            </div>
+
+            <!-- Message Input -->
+            <form id="message-form" class="mt-4 flex gap-3">
+                <input type="text" id="message-input" class="flex-1 p-3 border rounded-lg text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-400" placeholder="Type your message..." required>
+                <button type="submit" id="send-btn" class="px-5 py-2 bg-blue-600 text-white rounded-lg shadow-md hover:bg-blue-800 transition">Send</button>
+            </form>
+        </div>
     </div>
 
     <script>
+        let currentChatId = null;
+
+        document.getElementById('message-form').addEventListener('submit', sendMessage);
         async function sendMessage(event) {
             event.preventDefault();
             const inputField = document.getElementById('message-input');
             const chatBox = document.getElementById('chat-box');
             const userMessage = inputField.value;
-            const loadingBar = document.getElementById('loading-bar');
             const loadingDiv = document.getElementById('loading');
+            const loadingBar = document.getElementById('loading-bar');
 
-            // Append user's message to the chat
+            if (!currentChatId) {
+                currentChatId = "chat_" + new Date().getTime();
+            }
+
             chatBox.innerHTML += `<div class="text-right text-blue-600 mb-2"><strong>You:</strong> ${userMessage}</div>`;
             inputField.value = '';
             chatBox.scrollTop = chatBox.scrollHeight;
 
-            // Show "Thinking..." loading bar
             loadingDiv.classList.remove("hidden");
-            loadingBar.classList.add("w-0");
-            setTimeout(() => { loadingBar.classList.add("w-full"); }, 100);
+            loadingBar.style.width = "0%";
 
-            // Send request to server
+            let progress = 0;
+            const interval = setInterval(() => {
+                progress += 10;
+                loadingBar.style.width = progress + "%";
+                if (progress >= 90) clearInterval(interval);
+            }, 300);
+
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ message: userMessage })
+                body: JSON.stringify({ message: userMessage, chat_id: currentChatId })
             });
 
             const data = await response.json();
+            clearInterval(interval);
+            loadingBar.style.width = "100%";
+            setTimeout(() => loadingDiv.classList.add("hidden"), 500);
 
-            // Hide loading bar after response
-            loadingDiv.classList.add("hidden");
-
-            // ✅ 解析 Markdown 并渲染 HTML，同时确保 `a` 标签可点击
             if (data.reply) {
-                const botReplyHtml = marked.parse(data.reply);
-                const botMessage = document.createElement("div");
-                botMessage.classList.add("text-left", "text-gray-800", "mb-2", "p-2", "bg-gray-200", "rounded-md");
-                botMessage.innerHTML = `<strong>Bot:</strong> ${botReplyHtml}`;
+                chatBox.innerHTML += formatBotResponse(data.reply);
+            }
 
-                // ✅ **确保超链接在新标签页打开**
-                botMessage.querySelectorAll("a").forEach(link => {
+            chatBox.scrollTop = chatBox.scrollHeight;
+            loadChatHistory();
+        }
+
+        function formatBotResponse(botReply) {
+            try {
+                const jsonData = JSON.parse(botReply);
+                if (jsonData.summary) {
+                    // 处理新闻摘要
+                    return `<div class="text-left text-gray-800 mb-2 p-2 bg-gray-200 rounded-md">
+                                <strong>Bot:</strong>
+                                <p>${jsonData.summary.replace(/\n/g, "<br>")}</p>
+                            </div>`;
+                } else {
+                    // 处理天气或其他 JSON 响应
+                    return `<div class="text-left text-gray-800 mb-2 p-2 bg-gray-200 rounded-md">
+                                <strong>Bot:</strong>
+                                <pre class="bg-gray-300 p-2 rounded-md whitespace-pre-wrap">${JSON.stringify(jsonData, null, 2)}</pre>
+                            </div>`;
+                }
+            } catch (e) {
+                // **解析 Markdown 并添加 target="_blank"**
+                botReplyHtml = marked.parse(botReply) || `<p>无内容</p>`;
+
+                // **创建临时 div 并解析 HTML**
+                let tempDiv = document.createElement("div");
+                tempDiv.innerHTML = botReplyHtml;
+
+                // **确保所有 `<a>` 标签在新窗口打开**
+                tempDiv.querySelectorAll("a").forEach(link => {
                     link.setAttribute("target", "_blank");
                     link.setAttribute("rel", "noopener noreferrer");
                 });
 
-                chatBox.appendChild(botMessage);
-            } else {
-                chatBox.insertAdjacentHTML('beforeend', `
-                    <div class="text-left text-red-600 mb-2">
-                        <strong>Bot:</strong> Error: ${data.error}
-                    </div>
-                `);
+                return `<div class="text-left text-gray-800 mb-2 p-2 bg-gray-200 rounded-md">
+                            <strong>Bot:</strong> ${tempDiv.innerHTML}
+                        </div>`;
             }
+        }
+
+        async function loadChatHistory() {
+            const response = await fetch('/api/get_chats');
+            const chats = await response.json();
+            const historyList = document.getElementById('history-list');
+            historyList.innerHTML = "";
+
+            chats.forEach(chat => {
+                const li = document.createElement("li");
+                li.classList.add("relative", "flex", "justify-between", "items-center", "bg-gray-100", "hover:bg-gray-300", "p-2", "rounded-md");
+
+                li.innerHTML = `
+                    <button onclick="loadChat('${chat.id}', '${chat.title}')" class="w-full text-left">${chat.title}</button>
+
+                    <!-- 三个点（调整大小 & 左移）-->
+                    <button class="text-gray-500 hover:text-black px-2" onclick="toggleMenu(event, '${chat.id}')">
+                        <i class="fas fa-ellipsis-h"></i> <!-- 使用 FontAwesome 横向三个点 -->
+                    </button>
+
+                    <!-- 右侧下拉菜单（确保在正确位置显示）-->
+                    <div id="menu-${chat.id}" class="absolute top-full right-0 mt-1 bg-white border shadow-md rounded-md hidden">
+                        <button onclick="renameChat('${chat.id}')" class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-200">
+                            <i class="fas fa-pencil-alt text-gray-600 mr-2"></i> 重命名
+                        </button>
+                        <button onclick="deleteChat('${chat.id}')" class="flex items-center w-full text-left px-4 py-2 text-red-500 hover:bg-red-100">
+                            <i class="fas fa-trash text-red-500 mr-2"></i> 删除
+                        </button>
+                    </div>
+                `;
+
+                historyList.appendChild(li);
+            });
+        }
+
+        function toggleMenu(event, chatId) {
+            event.stopPropagation(); // 防止点击时立即关闭
+
+            closeAllMenus(); // 先关闭其他菜单
+
+            const button = event.currentTarget; // 获取按钮
+            const menu = document.getElementById(`menu-${chatId}`);
+
+            if (!menu) return;
+
+            menu.classList.toggle("hidden"); // 切换显示状态
+
+            // **让菜单脱离 `#chat-history` 的限制**
+            document.body.appendChild(menu);
+
+            // **计算菜单的位置**
+            const rect = button.getBoundingClientRect();
+            menu.style.position = "absolute";
+            menu.style.top = `${rect.bottom - 8}px`;  // 让菜单紧贴按钮下方
+            menu.style.left = `${rect.right - 23}px`; // 让菜单紧贴按钮右侧
+            menu.style.width = "106px"; // 设置固定宽度，避免拉伸
+            menu.style.zIndex = "9999";  // 让菜单浮到最前
+            menu.style.background = "white"; // 防止透明
+            menu.style.padding = "8px 0"; // 调整间距
+            menu.style.border = "1px solid #ddd"; // 添加边框
+            menu.style.borderRadius = "8px"; // 圆角效果
+            menu.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)"; // 阴影
+        }
+
+        function closeAllMenus() {
+            document.querySelectorAll("[id^='menu-']").forEach(menu => {
+                menu.classList.add("hidden");
+                document.body.appendChild(menu); // 重新放回 body，避免错位
+            });
+        }
+
+        async function loadChat(chatId, title) {
+            currentChatId = chatId;
+            document.getElementById('chat-title').innerText = title;
+
+            const response = await fetch(`/api/get_chat/${chatId}`);
+            const data = await response.json();
+            const chatBox = document.getElementById('chat-box');
+            chatBox.innerHTML = "";
+
+            data.messages.forEach(msg => {
+                const formattedMessage = msg.role === "user"
+                    ? `<div class="text-right text-blue-600 mb-2"><strong>You:</strong> ${msg.content}</div>`
+                    : formatBotResponse(msg.content);
+
+                chatBox.innerHTML += formattedMessage;
+            });
 
             chatBox.scrollTop = chatBox.scrollHeight;
         }
 
-        document.getElementById('message-form').addEventListener('submit', sendMessage);
-
-        // 清除聊天历史
-        async function clearChat() {
-            await fetch('/api/clear', { method: 'POST' });
-            document.getElementById('chat-box').innerHTML = "<p class='text-gray-500 text-center'>Chat cleared.</p>";
+        async function deleteChat(chatId) {
+            await fetch(`/api/delete_chat/${chatId}`, { method: 'DELETE' });
+            loadChatHistory();
         }
 
-        // 退出登录
+        async function renameChat(chatId) {
+            const newTitle = prompt("请输入新的对话标题：");
+            if (newTitle) {
+                await fetch(`/api/rename_chat/${chatId}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: newTitle })
+                });
+                loadChatHistory();
+            }
+        }
+
+        async function startNewChat() {
+            currentChatId = null;
+            document.getElementById('chat-title').innerText = "新对话";
+            document.getElementById('chat-box').innerHTML = "<p class='text-gray-500 text-center'>新对话已创建。</p>";
+        }
+
         async function logout() {
             await fetch('/logout', { method: 'POST' });
             window.location.href = '/';
         }
+
+        window.onload = loadChatHistory;
     </script>
 
 </body>

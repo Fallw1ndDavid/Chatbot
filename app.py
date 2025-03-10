@@ -35,6 +35,8 @@ if not NEWS_API_KEY:
 # 限制对话历史长度
 MAX_HISTORY = 20
 
+# 存储聊天记录的文件
+CHAT_HISTORY_FILE = "chat_history.json"
 
 ### ========================== 1️⃣ 登录 & 退出 ========================== ###
 
@@ -65,6 +67,62 @@ def chat_page():
         return redirect(url_for('index'))  # 未登录用户重定向回登录页
     return render_template('chat.html')
 
+
+# ========================== 3️⃣ 聊天管理 API ========================== #
+def load_chat_history():
+    """ 从 JSON 文件加载对话历史 """
+    if os.path.exists(CHAT_HISTORY_FILE):
+        with open(CHAT_HISTORY_FILE, "r", encoding="utf-8") as file:
+            return json.load(file)
+    return {}
+
+
+def save_chat_history(history):
+    """ 保存对话历史到 JSON 文件 """
+    with open(CHAT_HISTORY_FILE, "w", encoding="utf-8") as file:
+        json.dump(history, file, ensure_ascii=False, indent=4)
+
+
+@app.route('/api/get_chats', methods=['GET'])
+def get_chats():
+    """ 获取所有对话记录 """
+    history = load_chat_history()
+    chat_list = [{"id": chat_id, "title": chat["title"]} for chat_id, chat in history.items()]
+    return jsonify(chat_list)
+
+
+@app.route('/api/get_chat/<chat_id>', methods=['GET'])
+def get_chat(chat_id):
+    """ 获取指定对话内容 """
+    history = load_chat_history()
+    if chat_id in history:
+        return jsonify({"messages": history[chat_id]["messages"]})
+    return jsonify({"error": "Chat not found"}), 404
+
+
+@app.route('/api/delete_chat/<chat_id>', methods=['DELETE'])
+def delete_chat(chat_id):
+    """ 删除指定对话 """
+    history = load_chat_history()
+    if chat_id in history:
+        del history[chat_id]
+        save_chat_history(history)
+        return jsonify({"message": "Chat deleted successfully"})
+    return jsonify({"error": "Chat not found"}), 404
+
+
+@app.route('/api/rename_chat/<chat_id>', methods=['POST'])
+def rename_chat(chat_id):
+    """ 重命名对话 """
+    history = load_chat_history()
+    data = request.json
+    new_title = data.get("title")
+
+    if chat_id in history and new_title:
+        history[chat_id]["title"] = new_title
+        save_chat_history(history)
+        return jsonify({"message": "Chat renamed successfully"})
+    return jsonify({"error": "Chat not found or invalid title"}), 400
 
 ### ========================== 3️⃣ 实时天气查询（基于 OpenWeather API） ========================== ###
 
@@ -158,6 +216,9 @@ def query_news_function(topic="technology", language="zh", page_size=5, api_key=
     if response.status_code == 200:
         data = response.json()
         articles = data.get("articles", [])
+
+        # ✅ 只取最多 10 条新闻
+        articles = articles[:10]
 
         # ✅ 生成 Markdown 格式
         news_summary = "\n\n".join([
@@ -286,7 +347,15 @@ class AutoFunctionGenerator:
                 print("🔵 解析后的 JSON Schema:", cleaned_content)
 
                 schema_json = json.loads(cleaned_content)  # 解析 JSON
-                functions.append(schema_json)  # 存储到列表
+                # ✅ **手动移除 `api_key`**
+                if function_name in ["query_news_function", "query_openweather_function"]:
+                    if "parameters" in schema_json and "properties" in schema_json["parameters"]:
+                        schema_json["parameters"]["properties"].pop("api_key", None)  # 删除 `api_key`
+                        schema_json["parameters"]["required"] = [
+                            param for param in schema_json["parameters"]["required"] if param != "api_key"
+                        ]
+
+                functions.append(schema_json)
 
             except json.JSONDecodeError as e:
                 print(f"❌ JSONDecodeError: {e}")
@@ -345,9 +414,20 @@ def chat():
         if not session.get("authenticated"):
             return jsonify({"error": "Unauthorized access"}), 401  # 未授权用户禁止访问
 
-        user_input = request.json.get('message', '').strip()
+        data = request.json
+        user_input = data.get('message', '').strip()
+        chat_id = data.get('chat_id')
+
         if not user_input:
             return jsonify({"error": "Message cannot be empty"}), 400
+
+        # 载入历史对话
+        history = load_chat_history()
+        if chat_id not in history:
+            history[chat_id] = {"title": user_input[:20], "messages": []}
+
+        # 添加用户消息到历史记录
+        history[chat_id]["messages"].append({"role": "user", "content": user_input})
 
         # 解析 Function Calling
         function_list = [query_openweather_function, query_news_function]  # 需要 GPT-4o 调用的外部函数
@@ -359,13 +439,10 @@ def chat():
         if not functions:
             return jsonify({"error": "Function descriptions are empty."}), 500
 
-        session.setdefault("conversation_history", [])  # 确保对话历史存在
-        session["conversation_history"].append({"role": "user", "content": user_input})
-
         # **第一次调用 GPT-4o**
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=session["conversation_history"],
+            messages=history[chat_id]["messages"],
             functions=functions,
             function_call="auto"
         )
@@ -374,16 +451,6 @@ def chat():
         print("🟢 OpenAI API Response:", response)
 
         response_message = response.choices[0].message
-
-        # **存储 GPT 响应时转换为字典**
-        session["conversation_history"].append({
-            "role": response_message.role,
-            "content": response_message.content if response_message.content else "",
-            "function_call": {
-                "name": response_message.function_call.name if response_message.function_call else None,
-                "arguments": response_message.function_call.arguments if response_message.function_call else None,
-            } if response_message.function_call else None
-        })
 
         # **检查是否需要调用外部函数**
         if response_message.function_call:
@@ -403,32 +470,25 @@ def chat():
                 function_response = query_openweather_function(**function_args)
             elif function_name == "query_news_function":
                 function_response = query_news_function(**function_args)
-
-                # **解析新闻数据，限制 GPT 处理的数量**
-                news_list = json.loads(function_response)
-                if isinstance(news_list, list):
-                    news_text = "\n".join([
-                        f"{i + 1}. {n['title']}（来源: {n['source']}）\n阅读详情: {n['url']}"
-                        for i, n in enumerate(news_list[:5])  # 只取前 5 条新闻
-                    ])
-                    function_response = json.dumps({"summary": news_text})  # 让 GPT 只总结 5 条新闻
-
             else:
                 function_response = json.dumps({"error": f"未知函数: {function_name}"})
 
-            function_response_json = json.dumps(function_response)  # 确保是 JSON 字符串
-
-            # 存储函数调用的返回值
-            session["conversation_history"].append({
-                "role": "function",
-                "name": function_name,
-                "content": function_response_json
-            })
+            # **解析 API 响应**
+            try:
+                function_response_data = json.loads(function_response)
+                if isinstance(function_response_data, dict) and "summary" in function_response_data:
+                    function_response = function_response_data["summary"]
+                elif isinstance(function_response_data, dict):
+                    function_response = json.dumps(function_response_data, ensure_ascii=False, indent=2)
+            except json.JSONDecodeError:
+                pass
 
             # **第二次调用 GPT-4o，让它处理函数调用的返回值**
             second_response = client.chat.completions.create(
                 model="gpt-4o",
-                messages=session["conversation_history"]
+                messages=history[chat_id]["messages"] + [
+                    {"role": "function", "name": function_name, "content": function_response}
+                ]
             )
 
             bot_reply = second_response.choices[0].message.content
@@ -436,8 +496,12 @@ def chat():
             print("❌ OpenAI 未触发 Function Calling，返回普通聊天内容")
             bot_reply = response_message.content  # 直接返回 GPT 回答
 
+
         # **更新聊天记录**
-        session["conversation_history"].append({"role": "assistant", "content": bot_reply})
+        history[chat_id]["messages"].append({"role": "assistant", "content": bot_reply})
+
+        # **存储聊天记录**
+        save_chat_history(history)
 
         return jsonify({"reply": bot_reply})
 
