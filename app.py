@@ -7,6 +7,7 @@ from openai import OpenAI
 import inspect
 import re
 from dotenv import load_dotenv
+from transformers import pipeline
 
 # **加载环境变量**
 load_dotenv()
@@ -26,17 +27,19 @@ ACCESS_TOKEN = os.getenv("ACCESS_TOKEN", "hanliangdeng")  # 默认密码
 OPENWEATHER_API_KEY = os.getenv("OPENWEATHER_API_KEY")  # OpenWeather API Key
 NEWS_API_KEY = os.environ["NEWS_API_KEY"]
 
-if not OPENWEATHER_API_KEY:
-    raise ValueError("❌ OpenWeather API Key 未正确加载！请检查环境变量。")
-
-if not NEWS_API_KEY:
-    raise ValueError("❌ NewsAPI Key 未正确加载！请检查环境变量。")
-
 # 限制对话历史长度
 MAX_HISTORY = 20
 
 # 存储聊天记录的文件
 CHAT_HISTORY_FILE = "chat_history.json"
+
+# 加载 Hugging Face 预训练情感分析模型
+sentiment_pipeline = pipeline("sentiment-analysis", model="distilbert/distilbert-base-uncased-finetuned-sst-2-english")
+
+def analyze_sentiment(text):
+    """ 使用 Hugging Face 进行情感分析 """
+    result = sentiment_pipeline(text)
+    return result[0]["label"], result[0]["score"]  # 返回情感和置信度
 
 ### ========================== 1️⃣ 登录 & 退出 ========================== ###
 
@@ -406,6 +409,25 @@ class AutoFunctionGenerator:
 
 
 ### ========================== 5️⃣ GPT-4o Chatbot（支持记忆 & 实时数据） ========================== ###
+def generate_chat_title(first_message):
+    """
+    让 GPT-4o 基于第一句话生成一个简短的对话主题（最多8个字）。
+    """
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=[
+                {"role": "system", "content": "Summarize the following user input into a short conversation title. If the input is entirely in English, generate an English title. If it includes another language, generate the title in that language, with a maximum of 24 characters."},
+                {"role": "user", "content": first_message}
+            ],
+            temperature=0.3,  # 降低随机性，确保标题稳定
+            max_tokens=10,    # 限制标题生成的长度
+        )
+        return response.choices[0].message.content.strip()
+    except Exception as e:
+        print(f"❌ 生成对话标题失败: {e}")
+        return first_message[:20]  # 失败时用第一句话前 20 个字符
+
 
 
 @app.route('/api/chat', methods=['POST'])
@@ -421,13 +443,27 @@ def chat():
         if not user_input:
             return jsonify({"error": "Message cannot be empty"}), 400
 
+        # **1️⃣ 进行情感分析**
+        sentiment, confidence = analyze_sentiment(user_input)
+        print(f"🟢 用户情绪: {sentiment}, 置信度: {confidence:.2f}")  # 打印情感分析结果
+
         # 载入历史对话
         history = load_chat_history()
         if chat_id not in history:
-            history[chat_id] = {"title": user_input[:20], "messages": []}
+            history[chat_id] = {
+                "title": generate_chat_title(user_input),  # ✅ 使用 GPT 生成标题
+                "messages": []
+            }
 
         # 添加用户消息到历史记录
         history[chat_id]["messages"].append({"role": "user", "content": user_input})
+
+        # **✅ 在 GPT 调用时添加情感分析影响**
+        system_messages = []
+        if sentiment == "NEGATIVE" and confidence > 0.75:
+            system_messages.append({"role": "system", "content": "The user may be feeling down; please try to respond with comfort and encouragement."})
+        elif sentiment == "POSITIVE":
+            system_messages.append({"role": "system", "content": "The user is in a great mood; please respond in a more enthusiastic and lively manner!"})
 
         # 解析 Function Calling
         function_list = [query_openweather_function, query_news_function]  # 需要 GPT-4o 调用的外部函数
@@ -442,7 +478,7 @@ def chat():
         # **第一次调用 GPT-4o**
         response = client.chat.completions.create(
             model="gpt-4o",
-            messages=history[chat_id]["messages"],
+            messages=history[chat_id]["messages"] + system_messages,
             functions=functions,
             function_call="auto"
         )
@@ -503,7 +539,7 @@ def chat():
         # **存储聊天记录**
         save_chat_history(history)
 
-        return jsonify({"reply": bot_reply})
+        return jsonify({"reply": bot_reply, "sentiment": sentiment, "confidence": confidence})
 
     except Exception as e:
         return jsonify({"error": f"An error occurred: {str(e)}"}), 500
@@ -525,4 +561,4 @@ def clear_chat():
 
 if __name__ == '__main__':
     port = int(os.environ.get("PORT", 5000))
-    app.run(host='0.0.0.0', port=port, debug=True)
+    app.run(host='0.0.0.0', port=port, debug=True, threaded=True)

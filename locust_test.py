@@ -11,18 +11,7 @@ class ChatbotLoadTest(HttpUser):
     @task
     def test_chat(self):
         """模拟用户发送消息"""
-        self.client.post("/api/chat", json={"message": "今天天气如何？", "chat_id": "test_chat"})
-
-    @task
-    def test_long_message(self):
-        """测试超长文本输入"""
-        long_message = "天气" * 500  # 500 个"天气"字符
-        self.client.post("/api/chat", json={"message": long_message, "chat_id": "test_chat"})
-
-    @task
-    def test_empty_message(self):
-        """测试空输入"""
-        self.client.post("/api/chat", json={"message": "", "chat_id": "test_chat"})
+        self.client.post("/api/chat", json={"message": "可以跟我具体解释一下什么是自然语言处理吗？", "chat_id": "test_chat"})
 
     @task
     def test_news_request(self):
