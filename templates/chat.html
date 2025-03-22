@@ -225,10 +225,10 @@
             data.messages.forEach(msg => {
                 const formattedMessage = msg.role === "user"
                     ? `<div class="text-right text-blue-600 mb-2"><strong>You:</strong> ${msg.content}</div>`
-                    : formatBotResponse(msg.content);
-
+                    : formatBotResponse(msg.content, msg.sentiment || "NEUTRAL", msg.confidence || 0);
                 chatBox.innerHTML += formattedMessage;
             });
+
 
             chatBox.scrollTop = chatBox.scrollHeight;
         }

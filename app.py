@@ -534,7 +534,12 @@ def chat():
 
 
         # **更新聊天记录**
-        history[chat_id]["messages"].append({"role": "assistant", "content": bot_reply})
+        history[chat_id]["messages"].append({
+            "role": "assistant",
+            "content": bot_reply,
+            "sentiment": sentiment,
+            "confidence": confidence
+        })
 
         # **存储聊天记录**
         save_chat_history(history)
