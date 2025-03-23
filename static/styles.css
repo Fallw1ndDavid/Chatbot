@@ -20,7 +20,7 @@ body {
     overflow-y: auto;
 }
 
-/* ✅ 确保每个对话项的菜单可以正确显示 */
+/* 确保每个对话项的菜单可以正确显示 */
 .history-item {
     display: flex;
     justify-content: space-between;

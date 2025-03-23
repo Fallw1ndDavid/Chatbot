@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chat with GPT-4o</title>
+    <title>ChatBotX - with Sentiment Analysis and Real-time API Integration</title>
     <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <script src="https://cdn.tailwindcss.com"></script>
@@ -11,7 +11,7 @@
 </head>
 <body class="h-screen bg-gradient-to-r from-blue-400 to-purple-500 font-[Poppins] flex" onclick="closeAllMenus(event)">
 
-    <!-- 左侧对话列表 -->
+    <!-- Left-side conversation list -->
     <div id="chat-history" class="w-1/4 bg-white p-4 shadow-lg overflow-y-auto relative">
         <div class="flex justify-between items-center">
             <h2 class="text-lg font-semibold text-gray-800">History</h2>
@@ -20,15 +20,15 @@
         <ul id="history-list" class="mt-2 space-y-2"></ul>
     </div>
 
-    <!-- 右侧聊天窗口 -->
+    <!-- Right-side chat window -->
     <div class="flex-1 flex flex-col justify-center items-center">
-        <!-- 顶部按钮（退出） -->
+        <!-- Top-right button (Log out) -->
         <div class="absolute top-4 right-6">
             <button onclick="logout()" class="px-3 py-1 bg-gray-500 text-white rounded-md text-sm hover:bg-gray-700">Log out</button>
         </div>
 
         <div id="chat-container" class="w-full max-w-3xl bg-white rounded-2xl shadow-lg p-6">
-            <!-- 顶部标题 -->
+            <!-- Top title -->
             <div class="flex justify-between mb-4">
                 <h1 id="chat-title" class="text-2xl font-semibold text-gray-800">I'm ChatBotX. What can I do for you?</h1>
             </div>
@@ -112,27 +112,27 @@
             try {
                 const jsonData = JSON.parse(botReply);
                 if (jsonData.summary) {
-                    // 处理新闻摘要
+                    // Handle the news summary
                     return `<div class="text-left text-gray-800 mb-2 p-2 bg-gray-200 rounded-md">
                                 <strong>ChatBotX:</strong> ${emoji}
                                 <p>${jsonData.summary.replace(/\n/g, "<br>")}</p>
                             </div>`;
                 } else {
-                    // 处理天气或其他 JSON 响应
+                    // Handle weather or other JSON responses
                     return `<div class="text-left text-gray-800 mb-2 p-2 bg-gray-200 rounded-md">
                                 <strong>ChatBotX:</strong> ${emoji}
                                 <pre class="bg-gray-300 p-2 rounded-md whitespace-pre-wrap">${JSON.stringify(jsonData, null, 2)}</pre>
                             </div>`;
                 }
             } catch (e) {
-                // **解析 Markdown 并添加 target="_blank"**
+                // **Parse Markdown **
                 let botReplyHtml = marked.parse(botReply) || `<p>无内容</p>`;
 
-                // **创建临时 div 并解析 HTML**
+                // **Create a temporary div and parse the HTML**
                 let tempDiv = document.createElement("div");
                 tempDiv.innerHTML = botReplyHtml;
 
-                // **确保所有 `<a>` 标签在新窗口打开**
+                // **Ensure all <a> tags open in a new window**
                 tempDiv.querySelectorAll("a").forEach(link => {
                     link.setAttribute("target", "_blank");
                     link.setAttribute("rel", "noopener noreferrer");
@@ -157,12 +157,12 @@
                 li.innerHTML = `
                     <button onclick="loadChat('${chat.id}', '${chat.title}')" class="w-full text-left">${chat.title}</button>
 
-                    <!-- 三个点（调整大小 & 左移）-->
+                    <!-- Expand Menu Button -->
                     <button class="text-gray-500 hover:text-black px-2" onclick="toggleMenu(event, '${chat.id}')">
-                        <i class="fas fa-ellipsis-h"></i> <!-- 使用 FontAwesome 横向三个点 -->
+                        <i class="fas fa-ellipsis-h"></i>
                     </button>
 
-                    <!-- 右侧下拉菜单（确保在正确位置显示）-->
+                    <!-- Right-side dropdown menu -->
                     <div id="menu-${chat.id}" class="absolute top-full right-0 mt-1 bg-white border shadow-md rounded-md hidden">
                         <button onclick="renameChat('${chat.id}')" class="flex items-center w-full text-left px-4 py-2 hover:bg-gray-200">
                             <i class="fas fa-pencil-alt text-gray-600 mr-2"></i> Rename
@@ -178,38 +178,37 @@
         }
 
         function toggleMenu(event, chatId) {
-            event.stopPropagation(); // 防止点击时立即关闭
+            event.stopPropagation();
 
-            closeAllMenus(); // 先关闭其他菜单
+            closeAllMenus(); // First close other menus
 
-            const button = event.currentTarget; // 获取按钮
+            const button = event.currentTarget; // Get the button
             const menu = document.getElementById(`menu-${chatId}`);
 
             if (!menu) return;
 
-            menu.classList.toggle("hidden"); // 切换显示状态
+            menu.classList.toggle("hidden"); // Toggle the display state
 
-            // **让菜单脱离 `#chat-history` 的限制**
             document.body.appendChild(menu);
 
-            // **计算菜单的位置**
+            // **Menu Position Settings**
             const rect = button.getBoundingClientRect();
             menu.style.position = "absolute";
-            menu.style.top = `${rect.bottom - 8}px`;  // 让菜单紧贴按钮下方
-            menu.style.left = `${rect.right - 23}px`; // 让菜单紧贴按钮右侧
-            menu.style.width = "124px"; // 设置固定宽度，避免拉伸
-            menu.style.zIndex = "9999";  // 让菜单浮到最前
-            menu.style.background = "white"; // 防止透明
-            menu.style.padding = "8px 0"; // 调整间距
-            menu.style.border = "1px solid #ddd"; // 添加边框
-            menu.style.borderRadius = "8px"; // 圆角效果
-            menu.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)"; // 阴影
+            menu.style.top = `${rect.bottom - 8}px`;
+            menu.style.left = `${rect.right - 23}px`;
+            menu.style.width = "124px"; // width
+            menu.style.zIndex = "9999";
+            menu.style.background = "white";
+            menu.style.padding = "8px 0";
+            menu.style.border = "1px solid #ddd";
+            menu.style.borderRadius = "8px"; // rounded corner effect
+            menu.style.boxShadow = "0 4px 8px rgba(0, 0, 0, 0.2)"; // shadow
         }
 
         function closeAllMenus() {
             document.querySelectorAll("[id^='menu-']").forEach(menu => {
                 menu.classList.add("hidden");
-                document.body.appendChild(menu); // 重新放回 body，避免错位
+                document.body.appendChild(menu); // reinsert into the body to avoid misalignment
             });
         }
 

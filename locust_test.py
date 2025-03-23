@@ -1,27 +1,27 @@
 from locust import HttpUser, task, between
 
 class ChatbotLoadTest(HttpUser):
-    wait_time = between(1, 3)  # 每个用户请求间隔 1~3 秒
+    wait_time = between(1, 3)  # Each user request is spaced 1 to 3 seconds apart
 
     def on_start(self):
-        """ 每个用户启动时先登录，获取 Session """
-        response = self.client.post("/login", data={"password": "hanliangdeng"})  # 你的 ACCESS_TOKEN
-        print(f"登录响应: {response.status_code}, {response.text}")
+        """ Each user must log in upon startup to obtain a Session """
+        response = self.client.post("/login", data={"password": "hanliangdeng"})
+        print(f"Login response: {response.status_code}, {response.text}")
 
     @task
     def test_chat(self):
-        """模拟用户发送消息"""
-        self.client.post("/api/chat", json={"message": "可以跟我具体解释一下什么是自然语言处理吗？", "chat_id": "test_chat"})
+        """Simulate a user sending a message"""
+        self.client.post("/api/chat", json={"message": "Could you please explain to me in detail what natural language processing is?", "chat_id": "test_chat"})
 
     @task
     def test_news_request(self):
-        """模拟查询新闻 API"""
-        self.client.post("/api/chat", json={"message": "给我最新的三条新闻", "chat_id": "test_chat"})
+        """Simulate querying the news API"""
+        self.client.post("/api/chat", json={"message": "Give me the latest three news items.", "chat_id": "test_chat"})
 
     @task
     def test_weather_request(self):
-        """模拟查询天气 API"""
-        self.client.post("/api/chat", json={"message": "上海天气怎么样？", "chat_id": "test_chat"})
+        """Simulate querying the weather API"""
+        self.client.post("/api/chat", json={"message": "How is the weather in Shanghai?", "chat_id": "test_chat"})
 
 if __name__ == "__main__":
     import os
