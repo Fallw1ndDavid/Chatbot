@@ -289,13 +289,13 @@ class AutoFunctionGenerator:
             # Read the function name of the target function
             function_name = function.__name__
 
-            # Define few-shot prompt for the system role
+            # Define Few-shot prompt for the system role
             system_Q = "你是一位优秀的数据分析师，现在有一个函数的详细声明如下：%s" % function_description
             system_A = "计算年龄总和的函数，该函数从一个特定格式的JSON字符串中解析出DataFrame，然后计算所有人的年龄总和并以JSON格式返回结果。\
                         \n:param input_json: 必要参数，要求字符串类型，表示含有个体年龄数据的JSON格式字符串 \
                         \n:return: 计算完成后的所有人年龄总和，返回结果为JSON字符串类型对象"
 
-            # 定义user role的Few-shot提示
+            # Define Few-shot prompt for the user role
             user_Q = "请根据这个函数声明，为我生成一个JSON Schema对象描述。这个描述应该清晰地标明函数的输入和输出规范。具体要求如下：\
                       1. 提取函数名称：%s，并将其用作JSON Schema中的'name'字段  \
                       2. 在JSON Schema对象中，设置函数的参数类型为'object'.\
